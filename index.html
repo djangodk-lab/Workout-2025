@@ -285,8 +285,26 @@
             padding: 24px;
             max-width: 500px;
             width: 100%;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 480px) {
+            .modal {
+                padding: 12px;
+                align-items: flex-start;
+                padding-top: 40px;
+            }
+            
+            .modal-content {
+                max-width: 100%;
+                width: 100%;
+                max-height: 90vh;
+                padding: 20px 16px;
+                border-radius: 12px;
+                margin: 0;
+            }
         }
 
         .modal-header {
@@ -294,12 +312,27 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            gap: 16px;
         }
 
         .modal-title {
             font-size: 18px;
             font-weight: 600;
             color: #111;
+            flex: 1;
+            word-wrap: break-word;
+            line-height: 1.3;
+        }
+
+        @media (max-width: 480px) {
+            .modal-header {
+                margin-bottom: 16px;
+                gap: 12px;
+            }
+            
+            .modal-title {
+                font-size: 16px;
+            }
         }
 
         .close-btn {
@@ -324,6 +357,20 @@
             font-weight: 600;
             color: #111;
             margin-bottom: 12px;
+            word-wrap: break-word;
+            line-height: 1.3;
+        }
+
+        @media (max-width: 480px) {
+            .exercise-item {
+                padding: 12px;
+                margin-bottom: 10px;
+            }
+            
+            .exercise-item-name {
+                font-size: 13px;
+                margin-bottom: 10px;
+            }
         }
 
         .exercise-inputs {
@@ -332,10 +379,17 @@
             gap: 12px;
         }
 
+        @media (max-width: 480px) {
+            .exercise-inputs {
+                gap: 8px;
+            }
+        }
+
         .input-group {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            min-width: 0;
         }
 
         .input-label {
@@ -349,11 +403,21 @@
             border: 1px solid #e5e7eb;
             border-radius: 6px;
             font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
         }
 
         .input-field:focus {
             outline: none;
             border-color: #111;
+        }
+
+        @media (max-width: 480px) {
+            .input-field {
+                padding: 10px 8px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
         }
 
         /* Settings Tabs */
@@ -402,6 +466,18 @@
             cursor: pointer;
             margin-top: 20px;
             width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 480px) {
+            .save-btn {
+                padding: 14px 12px;
+                font-size: 16px;
+                margin-top: 16px;
+                /* Prevent zoom on iOS */
+                -webkit-appearance: none;
+                border-radius: 8px;
+            }
         }
 
         /* Swipe Screen */
@@ -725,9 +801,60 @@
     </div>
 
     <script>
-        // Initialize storage
-        if (!window.workoutHistory) window.workoutHistory = '[]';
-        if (!window.customWeights) window.customWeights = '{}';
+        // Initialize storage - safe localStorage detection
+        function initStorage() {
+            try {
+                // Test if localStorage is available
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                
+                // localStorage works - use it
+                if (!localStorage.getItem('workoutHistory')) {
+                    localStorage.setItem('workoutHistory', '[]');
+                }
+                if (!localStorage.getItem('customWeights')) {
+                    localStorage.setItem('customWeights', '{}');
+                }
+                window.useLocalStorage = true;
+            } catch (e) {
+                // localStorage not available - use window variables
+                if (!window.workoutHistory) window.workoutHistory = '[]';
+                if (!window.customWeights) window.customWeights = '{}';
+                window.useLocalStorage = false;
+            }
+        }
+
+        function getWorkoutHistory() {
+            if (window.useLocalStorage) {
+                return JSON.parse(localStorage.getItem('workoutHistory') || '[]');
+            } else {
+                return JSON.parse(window.workoutHistory || '[]');
+            }
+        }
+
+        function saveWorkoutHistory(workouts) {
+            if (window.useLocalStorage) {
+                localStorage.setItem('workoutHistory', JSON.stringify(workouts));
+            } else {
+                window.workoutHistory = JSON.stringify(workouts);
+            }
+        }
+
+        function getCustomWeights() {
+            if (window.useLocalStorage) {
+                return JSON.parse(localStorage.getItem('customWeights') || '{}');
+            } else {
+                return JSON.parse(window.customWeights || '{}');
+            }
+        }
+
+        function saveCustomWeights(weights) {
+            if (window.useLocalStorage) {
+                localStorage.setItem('customWeights', JSON.stringify(weights));
+            } else {
+                window.customWeights = JSON.stringify(weights);
+            }
+        }
 
         const workoutData = {
             day1: [
@@ -772,6 +899,9 @@
         let currentWorkoutDay = null;
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize localStorage
+            initStorage();
+            
             document.getElementById('workout-date').valueAsDate = new Date();
             
             // Populate all workout days
@@ -926,7 +1056,7 @@
         function saveWorkoutSettings() {
             if (!currentWorkoutDay) return;
             
-            const customWeights = JSON.parse(window.customWeights || '{}');
+            const customWeights = getCustomWeights();
             const inputs = document.querySelectorAll('#workout-exercises-container .input-field');
             
             inputs.forEach(input => {
@@ -943,7 +1073,7 @@
                 customWeights[key][type] = value;
             });
             
-            window.customWeights = JSON.stringify(customWeights);
+            saveCustomWeights(customWeights);
             
             closeWorkoutSettings();
             populateDay(currentWorkoutDay);
@@ -952,14 +1082,14 @@
         }
 
         function getCurrentWeight(dayId, exerciseIndex) {
-            const customWeights = JSON.parse(window.customWeights || '{}');
+            const customWeights = getCustomWeights();
             const key = `${dayId}-${exerciseIndex}`;
             
             if (customWeights[key]?.weight !== undefined) {
                 return customWeights[key].weight;
             }
             
-            const lastWorkouts = JSON.parse(window.workoutHistory || '[]');
+            const lastWorkouts = getWorkoutHistory();
             const exerciseName = workoutData[dayId][exerciseIndex].name;
             const maxReps = workoutData[dayId][exerciseIndex].targetReps + 2;
             
@@ -981,14 +1111,14 @@
         }
 
         function getCurrentReps(dayId, exerciseIndex) {
-            const customWeights = JSON.parse(window.customWeights || '{}');
+            const customWeights = getCustomWeights();
             const key = `${dayId}-${exerciseIndex}`;
             
             if (customWeights[key]?.reps !== undefined) {
                 return customWeights[key].reps;
             }
             
-            const lastWorkouts = JSON.parse(window.workoutHistory || '[]');
+            const lastWorkouts = getWorkoutHistory();
             const exerciseName = workoutData[dayId][exerciseIndex].name;
             const targetReps = workoutData[dayId][exerciseIndex].targetReps;
             const maxReps = targetReps + 2;
@@ -1267,9 +1397,9 @@
                 totalSets: currentSwipeSession.totalSets
             };
 
-            let savedWorkouts = JSON.parse(window.workoutHistory || '[]');
+            let savedWorkouts = getWorkoutHistory();
             savedWorkouts.unshift(workoutRecord);
-            window.workoutHistory = JSON.stringify(savedWorkouts.slice(0, 50));
+            saveWorkoutHistory(savedWorkouts.slice(0, 50));
             
             exitSwipeMode();
             loadHistory();
@@ -1301,7 +1431,7 @@
 
         function loadHistory() {
             const container = document.getElementById('history-container');
-            const savedWorkouts = JSON.parse(window.workoutHistory || '[]');
+            const savedWorkouts = getWorkoutHistory();
             
             if (savedWorkouts.length === 0) {
                 container.innerHTML = '<div class="empty-state">Nog geen workouts opgeslagen</div>';
